@@ -5,10 +5,46 @@ import json
 import argparse
 import os
 import threading
+
+# TODO - switch to multiprocessing
 import queue
 
 TFC_BASE_URL = "https://app.terraform.io/api/v2"
 ORGANIZATION_NAME = os.environ.get("TFC_ORG_NAME", "Nutrien")
+
+
+argument_parser = argparse.ArgumentParser()
+argument_parser.add_argument("--prefix", dest="prefix", action="store", type=str)
+argument_parser.add_argument(
+    "--token",
+    "-t",
+    dest="token",
+    action="store",
+    type=str,
+    default=os.environ.get("TFC_TOKEN", None),
+)
+argument_parser.add_argument(
+    "--parallel", "-p", dest="parallel", action="store", default=5, type=int
+)
+argument_parser.add_argument(
+    "--auto-approve", dest="auto_approve", action="store_true", default=False
+)
+argument_parser.add_argument(
+    "--max-checks", "-m", default=10, type=int, action="store", dest="max_checks"
+)
+argument_parser.add_argument(
+    "--force", default=False, action="store_true", dest="force"
+)
+
+
+def prompt_for_input():
+    v = input("apply: [y/N] ")
+
+    if v not in ["y", "Y"]:
+        print(f"received '{v}', expecting 'y' or 'Y' - exiting")
+        sys.exit(0)
+    else:
+        print("proceeding")
 
 
 def get_terraform_cloud_token():
@@ -30,6 +66,7 @@ def get_terraform_cloud_token():
 
 
 def get_workspaces_by_prefix(session: requests.sessions.Session, prefix):
+    # https://www.terraform.io/cloud-docs/api-docs/workspaces#list-workspaces
     workspaces = {}
 
     resp = session.get(
@@ -62,7 +99,19 @@ def get_workspaces_by_prefix(session: requests.sessions.Session, prefix):
     return workspaces
 
 
+def get_workspace_latest_run_id(session: requests.sessions.session, name: str):
+    # https://www.terraform.io/cloud-docs/api-docs/workspaces#show-workspace
+    resp = session.get(
+        f"{TFC_BASE_URL}/organizations/{ORGANIZATION_NAME}/workspaces/{name}"
+    )
+
+    j = json.loads(resp.text)
+
+    return j["data"]["relationships"]["latest-run"]["data"]["id"]
+
+
 def get_workspace_current_run_id(session: requests.sessions.session, name: str):
+    # https://www.terraform.io/cloud-docs/api-docs/workspaces#show-workspace
     resp = session.get(
         f"{TFC_BASE_URL}/organizations/{ORGANIZATION_NAME}/workspaces/{name}"
     )
@@ -80,7 +129,15 @@ def can_apply_plan(session: requests.sessions.session, plan_id: str):
     return j["data"]["attributes"]["actions"]["is-confirmable"]
 
 
-def apply_plan(session: requests.sessions.session, run_queue: queue.Queue):
+# def force_execute_run(session): pass
+
+
+def apply_plan(
+    session: requests.sessions.session,
+    run_queue: queue.Queue,
+    max_checks: int,
+    force: bool,
+):
     # https://www.terraform.io/cloud-docs/api-docs/run#apply-a-run
     while True:
         try:
@@ -112,7 +169,7 @@ def apply_plan(session: requests.sessions.session, run_queue: queue.Queue):
             # TODO - handle success notification better
 
             # TODO - max counter configurable
-            while counter < 10 and not done:
+            while counter < max_checks and not done:
                 resp = session.get(f"{TFC_BASE_URL}/runs/{run_id}")
 
                 status = json.loads(resp.text)["data"]["attributes"]["status"]
@@ -125,7 +182,7 @@ def apply_plan(session: requests.sessions.session, run_queue: queue.Queue):
                     print(f"failed to apply run '{run_id}'")
                 else:
                     print(
-                        f"run '{run_id}' is '{status}'. checking again in 5 seconds (total checks: {counter})"
+                        f"run '{run_id}' is '{status}'. checking again in 5 seconds (total checks: {counter}, max checks: {max_checks})"
                     )
 
                 counter += 1
@@ -143,15 +200,6 @@ def apply_plan(session: requests.sessions.session, run_queue: queue.Queue):
             break
 
 
-argument_parser = argparse.ArgumentParser()
-argument_parser.add_argument("--prefix", dest="prefix", action="store", type=str)
-argument_parser.add_argument(
-    "--token", "-t", dest="token", action="store", type=str, default=None
-)
-argument_parser.add_argument(
-    "--parallel", "-p", dest="parallel", action="store", default=5, type=int
-)
-
 parsed_args = argument_parser.parse_args()
 
 tfc_session = requests.Session()
@@ -168,22 +216,42 @@ print(f"retrieved {len(workspaces)} workspaces")
 apply_queue = queue.Queue()
 
 for workspace_name, workspace_id in workspaces.items():
-    current_run_id = get_workspace_current_run_id(tfc_session, workspace_name)
+    if parsed_args.force:
+        run_id = get_workspace_latest_run_id(tfc_session, workspace_name)
+    else:
+        run_id = get_workspace_current_run_id(tfc_session, workspace_name)
 
-    if can_apply_plan(tfc_session, current_run_id):
-        apply_queue.put(current_run_id, block=False)
+    if can_apply_plan(tfc_session, run_id):
+        apply_queue.put(run_id, block=False)
 
         print(f"put item on queue for '{workspace_name}'")
+    else:
+        print(f"unable to apply run for workspace '{workspace_name}'")
 
     if apply_queue.qsize() == 0:
         print("no items to apply")
-        sys.exit(0)
+
+print("workspaces to apply:")
+for w in workspaces.keys():
+    print(f"- {w}")
+
+
+# Speak now or forever hold your peace
+if not parsed_args.auto_approve:
+    prompt_for_input()
+else:
+    print(f"auto-approve flag set, proceeding with applies")
+
+# sys.exit(0)
+
 
 applier_threads = []
 
 for i in range(0, parsed_args.parallel):
     t = threading.Thread(
-        target=apply_plan, args=(tfc_session, apply_queue), daemon=True
+        target=apply_plan,
+        args=(tfc_session, apply_queue, parsed_args.max_checks, parsed_args.force),
+        daemon=True,
     )
 
     applier_threads.append(t)
