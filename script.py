@@ -1,3 +1,4 @@
+from pydoc import describe
 import sys
 import time
 import requests
@@ -26,21 +27,41 @@ argument_parser.add_argument(
     default=os.environ.get("TFC_TOKEN", None),
 )
 argument_parser.add_argument(
-    "--parallel", "-p", dest="parallel", action="store", default=5, type=int
+    "--parallel",
+    "-p",
+    dest="parallel",
+    action="store",
+    default=5,
+    type=int,
+    help="Number of worker threads to boot to do applies",
 )
 argument_parser.add_argument(
-    "--auto-approve", dest="auto_approve", action="store_true", default=False
+    "--auto-approve",
+    dest="auto_approve",
+    action="store_true",
+    default=False,
+    help="Don't prompt before starting applies",
 )
 argument_parser.add_argument(
-    "--max-checks", "-m", default=10, type=int, action="store", dest="max_checks"
+    "--max-checks",
+    "-m",
+    default=10,
+    type=int,
+    action="store",
+    dest="max_checks",
+    help="Number of times to check the status of an operation before moving on",
 )
 argument_parser.add_argument(
-    "--force", default=False, action="store_true", dest="force"
+    "--force",
+    default=False,
+    action="store_true",
+    dest="force",
+    help="Force run the latest run in a workspace",
 )
 
 
 def prompt_for_input():
-    v = input("apply: [y/N] ")
+    v = input("\n\n ** apply: [y/N] ")
 
     if v not in ["y", "Y"]:
         print(f"received '{v}', expecting 'y' or 'Y' - exiting")
@@ -330,8 +351,6 @@ if not parsed_args.auto_approve:
     prompt_for_input()
 else:
     print(f"auto-approve flag set, proceeding with applies")
-
-# sys.exit(0)
 
 
 applier_threads = []
