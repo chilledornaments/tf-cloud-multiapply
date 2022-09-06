@@ -16,5 +16,6 @@ def get_terraform_cloud_token():
         raise Exception(
             f"\n\n ** Did not find 'token' key in {credentials_file}. Please run `terraform login` before running this script",
         ) from None
+    # Unknown error case
     except:
         raise

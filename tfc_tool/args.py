@@ -7,6 +7,10 @@ DEFAULT_SUFFIXES = "dev,sit,pre,prd"
 def setup_arguments():
 
     argument_parser = argparse.ArgumentParser()
+
+    argument_parser.add_argument(
+        "--debug", "-v", dest="debug", action="store_true", default=False
+    )
     argument_parser.add_argument(
         "--prefix", "-p", dest="prefix", action="store", type=str
     )

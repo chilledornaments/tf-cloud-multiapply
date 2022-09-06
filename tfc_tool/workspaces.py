@@ -2,14 +2,23 @@ import requests
 import json
 import time
 import queue
+import logging
 
 TFC_BASE_URL = "https://app.terraform.io/api/v2"
 
+# TODO - build constants to hold OK, failed, etc statuses
+
 
 class Workspace:
-    def __init__(self, organization: str, tfc_session: requests.sessions.Session):
+    def __init__(
+        self,
+        organization: str,
+        tfc_session: requests.sessions.Session,
+        logger: logging.Logger,
+    ):
         self.organization_name = organization
         self.tfc_session = tfc_session
+        self.logger = logger
 
     def create_workspace(self, prefix: str, suffix: str):
         # https://www.terraform.io/cloud-docs/api-docs/workspaces#create-a-workspace
@@ -57,8 +66,8 @@ class Workspace:
         j = json.loads(resp.text)
 
         if len(j["data"]) == 0:
-            print(f"no data for workspace '{workspace_name}")
-            print(j)
+            self.logger.error(f"no data for workspace '{workspace_name}")
+            self.logger.debug(j)
             return None
 
         return j["data"][0]["id"]
@@ -85,20 +94,20 @@ class Workspace:
 
         try:
             # First, make sure we actually can force-execute this plan
-            print(f"checking to see if we can force execute '{run_id}'")
+            self.logger.info(f"checking to see if we can force execute '{run_id}'")
 
             resp = self.tfc_session.get(f"{TFC_BASE_URL}/runs/{run_id}")
             # If the run is pending then it's sitting in the queue waiting for another run to finish,
             # which means we can force execute it
             status = json.loads(resp.text)["data"]["attributes"]["status"]
             if status == "pending":
-                print(f"run '{run_id}' can be force executed, doing so now")
+                self.logger.info(f"run '{run_id}' can be force executed, doing so now")
 
                 resp = self.tfc_session.post(
                     f"{TFC_BASE_URL}/runs/{run_id}/actions/force-execute",
                     headers={"Content-Type": "application/vnd.api+json"},
                 )
-                print(resp.text)
+
                 time.sleep(5)
 
                 counter = 0
@@ -106,14 +115,16 @@ class Workspace:
 
                 # TODO - variable this
                 while counter < 10 and not done:
-                    print(f"checking status of forcefully executed run '{run_id}'")
+                    self.logger.info(
+                        f"checking status of forcefully executed run '{run_id}'"
+                    )
                     resp = self.tfc_session.get(f"{TFC_BASE_URL}/runs/{run_id}")
 
                     status = json.loads(resp.text)["data"]["attributes"]["status"]
 
                     if status in ["planned", "planned_and_finished"]:
                         done = True
-                        print(f"successfully planned run '{run_id}'")
+                        self.logger.info(f"successfully planned run '{run_id}'")
                     elif status in [
                         "errored",
                         "canceled",
@@ -121,10 +132,12 @@ class Workspace:
                         "force_canceled",
                     ]:
                         # done = True
-                        print(f"run '{run_id}' failed with status '{status}'")
+                        self.logger.error(
+                            f"run '{run_id}' failed with status '{status}'"
+                        )
                         return False
                     else:
-                        print(
+                        self.logger.info(
                             f"run '{run_id}' is '{status}'. checking again in 5 seconds (total checks: {counter}, max checks: {10})"
                         )
 
@@ -134,14 +147,16 @@ class Workspace:
 
                 return True
             elif status == "planned":
-                print(f"latest run is already planned for workspace '{workspace_name}'")
+                self.logger.info(
+                    f"latest run is already planned for workspace '{workspace_name}'"
+                )
                 return True
             else:
-                print(
+                self.logger.warning(
                     f"run {run_id} is '{status}', not 'pending', cannot force execute"
                 )
         except Exception as e:
-            print(f"exception while force executing run - {e}")
+            self.logger.error(f"exception while force executing run - {e}")
 
         return False
 
@@ -149,7 +164,7 @@ class Workspace:
         # https://www.terraform.io/cloud-docs/api-docs/run#apply-a-run
         while True:
             try:
-                print("pulling new run from queue")
+                self.logger.debug("pulling new run from queue")
 
                 run_object = run_queue.get(block=True, timeout=1)
 
@@ -157,12 +172,12 @@ class Workspace:
                 force = run_object["force"]
                 workspace_name = run_object["workspace_name"]
 
-                print(f"pulled '{run_id}' off queue (force: {force})")
+                self.logger.debug(f"pulled '{run_id}' off queue (force: {force})")
 
                 proceed = True
                 if force:
                     if not self.force_execute_run(run_id, workspace_name):
-                        print(
+                        self.logger.error(
                             f"force execute unsuccesful for workspace '{workspace_name}'"
                         )
                         proceed = False
@@ -173,14 +188,15 @@ class Workspace:
                         headers={"Content-Type": "application/vnd.api+json"},
                     )
 
+                    # Something has gone wrong if resp.text != null
                     if resp.text != "null":
-                        print(f"resp.text is {resp.text}")
+                        self.logger.debug(f"resp.text is {resp.text}")
                         if not json.loads(resp.text).get("success", False):
-                            print(f"error queuing apply - {resp.text}")
+                            self.logger.error(f"error queuing apply - {resp.text}")
 
                             raise Exception("error")
 
-                    print(f"queued apply for run '{run_id}'")
+                    self.logger.info(f"queued apply for run '{run_id}'")
 
                     # Wait for terraform cloud to do stuff
                     time.sleep(2)
@@ -197,12 +213,12 @@ class Workspace:
 
                         if status == "applied":
                             done = True
-                            print(f"successfully applied run '{run_id}'")
+                            self.logger.info(f"successfully applied run '{run_id}'")
                         elif status == "errored":
                             done = True
-                            print(f"failed to apply run '{run_id}'")
+                            self.logger.error(f"failed to apply run '{run_id}'")
                         else:
-                            print(
+                            self.logger.info(
                                 f"run '{run_id}' is '{status}'. checking again in 5 seconds (total checks: {counter}, max checks: {max_checks})"
                             )
 
@@ -212,14 +228,14 @@ class Workspace:
 
                     run_queue.task_done()
                 else:
-                    print(
+                    self.logger.error(
                         f"run '{run_id}' encountered an issue, marking item done and moving on"
                     )
                     run_queue.task_done()
             except queue.Empty:
-                print("queue is empty")
+                self.logger.warning("queue is empty")
                 break
 
             except Exception as e:
-                print(f"exception - {e}")
+                self.logger.error(f"exception - {e}")
                 return
