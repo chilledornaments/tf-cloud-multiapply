@@ -48,7 +48,7 @@ tfc \
 --suffix dev sit pre prd \
 --repo "chilledornaments/tf-cloud-multiapply" \
 --oauth-token-id ot-XUxkrb8SzWUNpWzF \
--variable-set-ids varset-AU5dhg6EbJrdWxiQ \
+--variable-set-ids varset-AU5dhg6EbJrdWxiQ \
 --var-file-folder ./envs \
 --plan-file-prefix weather \
 --prefix create-workspace-test
