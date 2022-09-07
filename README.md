@@ -39,3 +39,35 @@ Additionally, there are the following environment variables:
 
 
 Workspace names are created by simply stuffing the prefix and suffix together, so `--prefix aws-foo-bar` `--suffix dev sit pre prd` will yield `aws-foo-bar-{dev,sit,pre,prd}`. If you need additional customization, you'll have to build a loop on top of the `tfc` commands. Something like `for i in "us-east-1 us-east-2"; do tfc --add-workspace --prefix aws-foo-bar-$i --suffix dev sit pre prd; done`.
+
+**Full example:**
+
+```shell
+tfc \
+--add-workspace \
+--suffix dev sit pre prd \
+--repo "chilledornaments/tf-cloud-multiapply" \
+--oauth-token-id ot-XUxkrb8SzWUNpWzF \
+-variable-set-ids varset-AU5dhg6EbJrdWxiQ \
+--var-file-folder ./envs \
+--plan-file-prefix weather \
+--prefix create-workspace-test
+```
+
+This will create 4 workspaces:
+- create-workspace-test-dev
+    - variables
+      - `TF_CLI_ARGS_plan = ./envs/weather-dev.tfvars`
+- create-workspace-test-sit
+    - variables
+      - `TF_CLI_ARGS_plan = ./envs/weather-sit.tfvars`
+- create-workspace-test-pre
+    - variables
+      - `TF_CLI_ARGS_plan = ./envs/weather-pre.tfvars`
+- create-workspace-test-prd
+    - variables
+      - `TF_CLI_ARGS_plan = ./envs/weather-prd.tfvars`
+
+Each workspace will have a VCS connection set up to pull code from `chilledornaments/tf-cloud-multiapply`.
+
+The variable set(s) specified by the `--variable-set-ids` will be shared with all four workspaces 
