@@ -20,7 +20,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r test.requirements.txt
           pip install -r requirements.txt
-      - name: Test install
+      - name: Pytest
+        run: |
+          pytest -v
+      - name: Install test
         run: |
           python setup.py install
           tfc --help

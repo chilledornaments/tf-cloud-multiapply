@@ -4,6 +4,8 @@ import time
 import queue
 import logging
 
+from typing import List
+
 TFC_BASE_URL = "https://app.terraform.io/api/v2"
 
 # TODO - build constants to hold OK, failed, etc statuses
@@ -20,9 +22,114 @@ class Workspace:
         self.tfc_session = tfc_session
         self.logger = logger
 
-    def create_workspace(self, prefix: str, suffix: str):
+    def clean_folder_name(self, folder_name: str):
+        return folder_name.rstrip("/")
+
+    def add_tf_cli_args_plan_to_workspace(
+        self, workspace_id: str, path_to_var_file: str
+    ):
+        b = {
+            "data": {
+                "type": "vars",
+                "attributes": {
+                    "key": "TF_CLI_ARGS_plan",
+                    "value": f"-var-file={path_to_var_file}",
+                    "category": "env",
+                    "hcl": False,
+                    "sensitive": False,
+                },
+            }
+        }
+
+        resp = self.tfc_session.post(
+            f"{TFC_BASE_URL}/workspaces/{workspace_id}/vars",
+            headers={"Content-Type": "application/vnd.api+json"},
+            json=b,
+        )
+
+        if resp.status_code == 201:
+            self.logger.info(
+                f"successfully added 'TF_CLI_ARGS_plan={path_to_var_file}' to workspace '{workspace_id}'"
+            )
+        else:
+            self.logger.error(
+                f"received bad status code {resp.status_code} adding TF_CLI_ARGS_plan to workspace - {resp.text}"
+            )
+
+    def share_variable_set_with_new_workspace(
+        self, variable_set_id: str, workspace_id: str
+    ):
+        # https://www.terraform.io/cloud-docs/api-docs/variable-sets#apply-variable-set-to-workspaces
+        b = {"data": [{"type": "workspaces", "id": workspace_id}]}
+
+        resp = self.tfc_session.post(
+            f"{TFC_BASE_URL}/varsets/{variable_set_id}/relationships/workspaces",
+            headers={"Content-Type": "application/vnd.api+json"},
+            json=b,
+        )
+
+        if resp.status_code != 204:
+            self.logger.error(
+                f"received bad status code {resp.status_code} adding workspace to variable set {resp.text}"
+            )
+        else:
+            self.logger.info(
+                f"successfully shared variable set '{variable_set_id}' with worksapce '{workspace_id}'"
+            )
+
+    def create_workspace(
+        self,
+        prefix: str,
+        suffix: str,
+        repo: str,
+        token_id: str,
+        path_to_var_file: str,
+        variable_set_ids: List[str],
+    ):
         # https://www.terraform.io/cloud-docs/api-docs/workspaces#create-a-workspace
-        pass
+
+        new_workspace_name = f"{prefix}-{suffix}"
+
+        # TODO - Attach variables
+        # TODO - global variable and user-provided variables
+        b = {
+            "data": {
+                "type": "workspaces",
+                "attributes": {
+                    "name": new_workspace_name,
+                    "vcs-repo": {"identifier": repo, "oauth-token-id": token_id},
+                },
+            },
+        }
+
+        resp = self.tfc_session.post(
+            f"{TFC_BASE_URL}/organizations/{self.organization_name}/workspaces",
+            headers={"Content-Type": "application/vnd.api+json"},
+            json=b,
+        )
+
+        if resp.status_code == 201:
+            new_workspace_id = json.loads(resp.text)["data"]["id"]
+
+            self.logger.info(
+                f"successfully created workspace '{new_workspace_name}' (id={new_workspace_id})"
+            )
+
+            self.add_tf_cli_args_plan_to_workspace(new_workspace_id, path_to_var_file)
+
+            for variable_set_id in variable_set_ids:
+                self.share_variable_set_with_new_workspace(
+                    variable_set_id, new_workspace_id
+                )
+
+        elif resp.status_code == 412:
+            self.logger.warning(
+                f"workspace '{new_workspace_name}' already exists. not making any modifications to this pre-existing workspace"
+            )
+        else:
+            self.logger.error(
+                f"error creating workspace '{new_workspace_name}' (code={resp.status_code}) - {resp.text}"
+            )
 
     def get_workspaces_by_prefix(self, prefix):
         # https://www.terraform.io/cloud-docs/api-docs/workspaces#list-workspaces
@@ -205,7 +312,6 @@ class Workspace:
                     done = False
                     # TODO - handle success notification better
 
-                    # TODO - max counter configurable
                     while counter < max_checks and not done:
                         resp = self.tfc_session.get(f"{TFC_BASE_URL}/runs/{run_id}")
 

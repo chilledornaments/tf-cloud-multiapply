@@ -37,7 +37,46 @@ ws = workspaces.Workspace(
 
 
 def create_workspaces_workflow():
-    pass
+    # Do default logic here
+    # See comment on argument itself
+    if len(parsed_args.new_workspace_suffix) == 0:
+        parsed_args.new_workspace_suffix = args.DEFAULT_SUFFIXES
+
+    # User hasn't set any so use default
+    if len(parsed_args.new_workspace_variable_set_ids) == 0:
+        # Try to grab the env var for default
+        if os.environ.get("TFC_DEFAULT_VARIABLE_SET_ID", None) is not None:
+            # Don't use .get() here because I want it to blow up
+            parsed_args.new_workspace_variable_set_ids = os.environ[
+                "TFC_DEFAULT_VARIABLE_SET_ID"
+            ].split(",")
+
+    for suffix in parsed_args.new_workspace_suffix:
+        # No prefix override passed, so we can assume the file name is just "<suffix>.tfvars"
+        if parsed_args.new_workspace_plan_file_prefix is None:
+            plan_file_name = f"{suffix}.tfvars"
+        else:
+            plan_file_name = (
+                f"{parsed_args.new_workspace_plan_file_prefix}-{suffix}.tfvars"
+            )
+            # Make `-pfp platform-` and `-pfp platform` equivalent
+            if "--" in f"{parsed_args.new_workspace_plan_file_prefix}-{suffix}.tfvars":
+                plan_file_name = (
+                    f"{parsed_args.new_workspace_plan_file_prefix}{suffix}.tfvars"
+                )
+
+        var_file_folder_name = ws.clean_folder_name(
+            parsed_args.new_workspace_var_file_folder
+        )
+
+        ws.create_workspace(
+            parsed_args.prefix,
+            suffix,
+            parsed_args.new_workspace_vcs_repo,
+            parsed_args.new_workspace_oauth_token,
+            f"{var_file_folder_name}/{plan_file_name}",
+            parsed_args.new_workspace_variable_set_ids,
+        )
 
 
 def multi_apply_workflow():
