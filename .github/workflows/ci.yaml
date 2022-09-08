@@ -21,19 +21,10 @@ jobs:
       - name: Unit tests
         run: |
           go test -v ./...
-      - name: Build arm64 mac
-        env:
-          GOOS: darwin
-          GOARCH: arm64
-        run: |
-          go build -o bin/tfc
-      - name: Build amd64 mac
-        env:
-          GOOS: darwin
-          GOARCH: amd64
-        run: |
-          go build -o bin/tfc
       - name: Test help
         run: |
           go build -o bin/tfc
           bin/tfc --help
+      - name: Run build all script
+        run: |
+          bash scripts/build/build_and_zip_all.sh
