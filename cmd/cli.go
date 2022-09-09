@@ -33,13 +33,13 @@ type CLISettings struct {
 		PathToVariableFiles  string
 		Repo                 string
 		VCSOAuthTokenID      string
+		SkipPlanArgsEnvVar   bool
 	}
 }
 
 var tfcCLI = &cobra.Command{
 	Use:   "tfc",
 	Short: "A CLI for working with Terraform Cloud",
-	// Args:  tfcCliArgs,
 }
 
 var multiApplyCmd = &cobra.Command{
@@ -54,14 +54,6 @@ var createWorkspaceCmd = &cobra.Command{
 	Run:   createWorkspaceEntrypoint,
 }
 
-// func tfcCliArgs(cmd *cobra.Command, args []string) error {
-// 	if len(args) < 1 {
-// 		return errors.New("argument required")
-// 	}
-
-// 	return nil
-// }
-
 func initTool() {
 	token, err := tool.GetTerraformCloudToken()
 
@@ -72,7 +64,7 @@ func initTool() {
 	tfcTool = tool.NewTool(token, organization, settings.Debug)
 }
 
-func init() {
+func buildmultiApplyCmd() {
 	multiApplyCmd.Flags().StringVarP(&settings.Prefix, "prefix", "p", "", "Prefix to apply against")
 	multiApplyCmd.Flags().IntVarP(&settings.MultiApplySettings.Workers, "workers", "w", 5, "Number of concurrent applies to run")
 	multiApplyCmd.Flags().BoolVarP(&settings.MultiApplySettings.AutoApprove, "auto-approve", "a", false, "Automatically apply plans")
@@ -82,9 +74,12 @@ func init() {
 	multiApplyCmd.Flags().BoolVarP(&settings.MultiApplySettings.Gated, "gated", "g", false, "When set, runs are performed one at a time and you are prompted for approval before each run. This allows you to check the outcome of a run manually before proceeding")
 	// Prevent passing both gated and auto-approve
 	multiApplyCmd.MarkFlagsMutuallyExclusive("gated", "auto-approve")
+}
 
+func buildcreateWorkspaceCmd() {
 	createWorkspaceCmd.Flags().StringVarP(&settings.Prefix, "prefix", "p", "", "Prefix to use when creating workspaces")
 	createWorkspaceCmd.Flags().StringArrayVarP(&settings.Create.Suffix, "suffix", "s", []string{}, "Suffix to use when creating workspaces")
+	createWorkspaceCmd.Flags().BoolVar(&settings.Create.SkipPlanArgsEnvVar, "skip-vars", false, "Do not add any environment variables to workspace")
 	createWorkspaceCmd.Flags().StringArrayVarP(
 		&settings.Create.VariableSetSecretIDs,
 		"variable-set-ids", "v",
@@ -94,7 +89,13 @@ func init() {
 	createWorkspaceCmd.Flags().StringVarP(&settings.Create.PathToVariableFiles, "path-to-var-files", "f", "./var", "Path to variable files")
 	createWorkspaceCmd.Flags().StringVarP(&settings.Create.VariableFilePrefix, "var-file-prefix", "x", "", "Combined with suffix to build variable file name for a given workspace")
 	createWorkspaceCmd.Flags().StringVarP(&settings.Create.Repo, "repo", "r", "", "Repository name to connect to workspace. Must be in the form of <Repo owner>/<repo name>")
-	createWorkspaceCmd.Flags().StringVarP(&settings.Create.VCSOAuthTokenID, "vcs-token-id", "i", "", "ID of OAuth token that Terraform Cloud uses to connect to VCS. Can be found in Terraform Cloud version control settings")
+	createWorkspaceCmd.Flags().StringVarP(&settings.Create.VCSOAuthTokenID, "vcs-token-id", "i", os.Getenv("TFC_VCS_TOKEN_ID"), "ID of OAuth token that Terraform Cloud uses to connect to VCS. Can be found in Terraform Cloud version control settings")
+}
+
+func init() {
+
+	buildmultiApplyCmd()
+	buildcreateWorkspaceCmd()
 
 	tfcCLI.PersistentFlags().StringVarP(&organization, "organization", "o", os.Getenv("TFC_ORG_NAME"), "Terraform Cloud organization name")
 	tfcCLI.PersistentFlags().BoolVar(&settings.Debug, "debug", false, "Enable debug logging")

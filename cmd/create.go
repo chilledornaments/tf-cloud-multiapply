@@ -35,11 +35,12 @@ func createWorkspaceEntrypoint(cmd *cobra.Command, args []string) {
 		workspaceID, err := w.Create(
 			ctx,
 			&tool.NewWorkspaceOptions{
-				Name:             newWorkspaceName,
-				Repo:             settings.Create.Repo,
-				OAuthTokenID:     settings.Create.VCSOAuthTokenID,
-				VariableFilePath: fmt.Sprintf("%s/%s", tool.CleanFolderName(settings.Create.PathToVariableFiles), varFileName),
-				VariableSetIds:   settings.Create.VariableSetSecretIDs,
+				Name:               newWorkspaceName,
+				Repo:               settings.Create.Repo,
+				OAuthTokenID:       settings.Create.VCSOAuthTokenID,
+				VariableFilePath:   fmt.Sprintf("%s/%s", tool.CleanFolderName(settings.Create.PathToVariableFiles), varFileName),
+				VariableSetIds:     settings.Create.VariableSetSecretIDs,
+				SkipPlanArgsEnvVar: settings.Create.SkipPlanArgsEnvVar,
 			},
 		)
 
@@ -54,7 +55,13 @@ func createWorkspaceEntrypoint(cmd *cobra.Command, args []string) {
 
 	for _, ws := range newWorkspaceIDs {
 		tfeWorkspaces = append(tfeWorkspaces, &tfe.Workspace{ID: ws})
-		w.Logger.Info(ws)
+	}
+
+	// Do a little cleanup
+	// If you strings.Split() an unset env var, Go doesn't create an empty list
+	// It creates a list with a single empty string
+	if settings.Create.VariableSetSecretIDs[0] == "" {
+		settings.Create.VariableSetSecretIDs = settings.Create.VariableSetSecretIDs[1:]
 	}
 
 	for _, vs := range settings.Create.VariableSetSecretIDs {

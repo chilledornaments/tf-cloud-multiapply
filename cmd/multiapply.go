@@ -52,10 +52,10 @@ func multiapplyEntrypoint(cmd *cobra.Command, args []string) {
 		panic(err)
 	}
 
-	cleanedWorkspaces := filterSkipped(workspaces, *m.Logger)
-	m.Logger.Infof("found %d workspaces", len(cleanedWorkspaces))
+	filteredWorkspaces := filterSkipped(workspaces, *m.Logger)
+	m.Logger.Infof("found %d workspaces", len(filteredWorkspaces))
 
-	for name, id := range cleanedWorkspaces {
+	for name, id := range filteredWorkspaces {
 		if settings.MultiApplySettings.Force {
 			// Get latest plan
 			runID, err := m.LatestRun(ctx, name, id)

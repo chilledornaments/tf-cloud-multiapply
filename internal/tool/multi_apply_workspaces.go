@@ -176,8 +176,6 @@ func (m *MultiApply) checkStatus(ctx context.Context, id string) (bool, error) {
 		}
 	}
 
-	m.Logger.WithFields(logrus.Fields{"run_id": id, "status": r.Status}).Debug("run is not complete")
-
 	return false, nil
 }
 

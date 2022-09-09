@@ -13,11 +13,12 @@ type WorkspaceCreator struct {
 }
 
 type NewWorkspaceOptions struct {
-	Name             string
-	Repo             string
-	OAuthTokenID     string
-	VariableFilePath string
-	VariableSetIds   []string
+	Name               string
+	Repo               string
+	OAuthTokenID       string
+	VariableFilePath   string
+	VariableSetIds     []string
+	SkipPlanArgsEnvVar bool
 }
 
 // Create creates a workspace, adds the TF_CLI_ARGS_plan env var to it, then returns the new workspace ID
@@ -39,8 +40,9 @@ func (w *WorkspaceCreator) Create(ctx context.Context, options *NewWorkspaceOpti
 		return nil, err
 	}
 
-	err = w.addVarFileArgument(ctx, r.ID, r.Name, options.VariableFilePath)
-
+	if !options.SkipPlanArgsEnvVar {
+		err = w.addVarFileArgument(ctx, r.ID, r.Name, options.VariableFilePath)
+	}
 	return &r.ID, err
 }
 
