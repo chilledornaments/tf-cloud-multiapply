@@ -17,7 +17,7 @@ Store the following env vars in a file that you `source` before using this tool:
 - `TFC_DEFAULT_VARIABLE_SET_ID` (if creating workspaces)
     - This is a comma-separated list of variable set IDs to share with workspaces
 - `TFC_OAUTH_TOKEN_ID` (if adding workspaces)
-- `TFC_ORG_NAME` (if not Nutrien)
+- `TFC_ORG_NAME`
 - `TFC_TOKEN` if you don't want to run `terraform login` or if you want to test against a specific account
 
 ## Apply multiple workspaces
