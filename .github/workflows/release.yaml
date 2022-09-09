@@ -26,7 +26,14 @@ jobs:
           tag_name: ${{ steps.create_tag.outputs.tag }}
           release_name: ${{ steps.create_tag.outputs.tag }}
           draft: true
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.19
           prerelease: false
+      - name: Build artifacts
+        run: |
+          bash scripts/build/build_and_zip_all.sh
 
   upload_assets:
     needs:
@@ -37,14 +44,6 @@ jobs:
         arch: [amd64, arm64]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Build artifacts
-        run: |
-          bash scripts/build/build_and_zip_all.sh
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.19
       - uses: actions/upload-release-asset@v1.0.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
