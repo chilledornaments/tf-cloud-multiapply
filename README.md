@@ -2,6 +2,51 @@
 
 ## Installing
 
+- Download the appropriate release for your machine
+- Unzip the release
+- `chmod +x tfc`
+- Move the binary into your PATH
+
+## Power User Instructions
+
+Store the following env vars in a file that you `source` before using this tool:
+- `TFC_DEFAULT_VARIABLE_SET_ID` (if creating workspaces)
+    - This is a comma-separated list of variable set IDs to share with workspaces
+- `TFC_OAUTH_TOKEN_ID` (if adding workspaces)
+- `TFC_ORG_NAME` (if not Nutrien)
+- `TFC_TOKEN` if you don't want to run `terraform login` or if you want to test against a specific account
+
+## Apply multiple workspaces
+
+Command: `apply`
+
+Flags:
+- `--prefix` / `-p`: apply all workspaces with this prefix. Cannot be an empty string
+- `--auto-approve` / `-a`: Don't prompt for approval before starting applies
+- `--force`: Forcefully apply the most recent run in the workspace
+- `--timeout` / `-t`: Number of seconds to wait for a given run to apply
+- `--workers` / `-w`: Number of workers to boot up
+
+Example:
+
+`tfc apply --prefix aws-ipam-latam`
+
+## Create multiple workspaces
+
+Command: `create`
+
+
+
+
+
+
+
+# Python Docs
+
+The python CLI is deprecated. Use the Go version.
+
+## Installing
+
 You must use Python 3.9 or later.
 
 Run `python setup.py install`
