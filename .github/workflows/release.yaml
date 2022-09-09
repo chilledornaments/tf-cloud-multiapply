@@ -12,6 +12,7 @@ jobs:
       release_id: ${{ steps.create_release.outputs.id }}
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
+      - uses: actions/checkout@v3
       - name: Output tag
         id: create_tag
         run: |
