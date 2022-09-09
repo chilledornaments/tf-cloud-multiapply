@@ -4,10 +4,35 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/chilledornaments/tfc/internal/tool"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
+
+func filterSkipped(workspaces map[string]string, logger logrus.Logger) map[string]string {
+	rv := make(map[string]string)
+
+	for name, id := range workspaces {
+		keep := true
+
+		for _, value := range settings.MultiApplySettings.Skip {
+			if strings.Contains(name, value) {
+				logger.Debugf("skipping workspace '%s' because it contains string '%s'", name, value)
+				keep = false
+				break
+			}
+		}
+
+		if keep {
+			rv[name] = id
+		}
+
+	}
+
+	return rv
+}
 
 func multiapplyEntrypoint(cmd *cobra.Command, args []string) {
 	if settings.Prefix == "" {
@@ -27,9 +52,10 @@ func multiapplyEntrypoint(cmd *cobra.Command, args []string) {
 		panic(err)
 	}
 
-	m.Logger.Infof("found %d workspaces", len(workspaces))
+	cleanedWorkspaces := filterSkipped(workspaces, *m.Logger)
+	m.Logger.Infof("found %d workspaces", len(cleanedWorkspaces))
 
-	for name, id := range workspaces {
+	for name, id := range cleanedWorkspaces {
 		if settings.MultiApplySettings.Force {
 			// Get latest plan
 			runID, err := m.LatestRun(ctx, name, id)
@@ -81,6 +107,7 @@ func multiapplyEntrypoint(cmd *cobra.Command, args []string) {
 			fmt.Printf("- %s", item.WorkspaceName)
 		}
 
+		// Seems redundant if the build is gated, but this gives the user a chance to bail out if they typoed or something
 		tool.PromptForInput()
 	} else {
 		m.Logger.Warn("automatic approval flag set, not prompting for input. This may result in unexpected changes!")
@@ -91,10 +118,18 @@ func multiapplyEntrypoint(cmd *cobra.Command, args []string) {
 	workerCtx, workerCtxCancel := context.WithCancel(ctx)
 	defer workerCtxCancel()
 
-	for i := 0; i < settings.MultiApplySettings.Workers; i++ {
+	// Hacky, but it works
+	if settings.MultiApplySettings.Gated {
 		wg.Add(1)
 
-		go m.Work(workerCtx, settings.MultiApplySettings.Timeout, wg)
+		go m.Work(workerCtx, settings.MultiApplySettings.Timeout, settings.MultiApplySettings.Gated, wg)
+	} else {
+
+		for i := 0; i < settings.MultiApplySettings.Workers; i++ {
+			wg.Add(1)
+
+			go m.Work(workerCtx, settings.MultiApplySettings.Timeout, settings.MultiApplySettings.Gated, wg)
+		}
 	}
 
 	wg.Wait()

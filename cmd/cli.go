@@ -23,6 +23,8 @@ type CLISettings struct {
 		Force       bool
 		AutoApprove bool
 		Timeout     int
+		Skip        []string
+		Gated       bool
 	}
 	Create struct {
 		Suffix               []string
@@ -76,6 +78,10 @@ func init() {
 	multiApplyCmd.Flags().BoolVarP(&settings.MultiApplySettings.AutoApprove, "auto-approve", "a", false, "Automatically apply plans")
 	multiApplyCmd.Flags().BoolVar(&settings.MultiApplySettings.Force, "force", false, "Force run the latest plan")
 	multiApplyCmd.Flags().IntVarP(&settings.MultiApplySettings.Timeout, "timeout", "t", 300, "Number of seconds to wait for an apply to apply. If you're running this tool against workspaces with many resources, you will likely need to set this to a large value")
+	multiApplyCmd.Flags().StringArrayVar(&settings.MultiApplySettings.Skip, "skip", []string{}, "Any workspace containing this string will be skipped. Useful for excluding certain environments")
+	multiApplyCmd.Flags().BoolVarP(&settings.MultiApplySettings.Gated, "gated", "g", false, "When set, runs are performed one at a time and you are prompted for approval before each run. This allows you to check the outcome of a run manually before proceeding")
+	// Prevent passing both gated and auto-approve
+	multiApplyCmd.MarkFlagsMutuallyExclusive("gated", "auto-approve")
 
 	createWorkspaceCmd.Flags().StringVarP(&settings.Prefix, "prefix", "p", "", "Prefix to use when creating workspaces")
 	createWorkspaceCmd.Flags().StringArrayVarP(&settings.Create.Suffix, "suffix", "s", []string{}, "Suffix to use when creating workspaces")

@@ -30,10 +30,16 @@ Flags:
 - `--force`: Forcefully apply the most recent run in the workspace
 - `--timeout` / `-t`: Number of seconds to wait for a given run to apply
 - `--workers` / `-w`: Number of workers to boot up
+- `--gated` / `-g`: Apply runs one-at-a-time, prompting for `y` before moving on. This can be used to give yourself a chance to manually check the outcome of an apply
+- `--skip`: A list of . Can be used multiple times, e.g. `--skip prd --skip pre`
 
 Example:
 
 `tfc apply --prefix aws-ipam-latam`
+
+Example skipping:
+
+`tfc apply --prefix aws-ipam-latam --skip prd --skip pre`
 
 ## Create multiple workspaces
 

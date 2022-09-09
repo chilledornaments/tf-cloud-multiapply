@@ -2,6 +2,7 @@ package tool
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -16,7 +17,7 @@ func timeoutExpired(deadline time.Time) bool {
 	return time.Until(deadline) <= 0
 }
 
-func (m *MultiApply) Work(ctx context.Context, timeout int, wg *sync.WaitGroup) {
+func (m *MultiApply) Work(ctx context.Context, timeout int, gated bool, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	done := false
@@ -34,6 +35,11 @@ func (m *MultiApply) Work(ctx context.Context, timeout int, wg *sync.WaitGroup) 
 		if work == nil {
 			done = true
 		} else {
+			if gated {
+				fmt.Printf("\n** gated apply requires approval for workspace: \n '%s'", work.WorkspaceName)
+				PromptForInput()
+			}
+
 			m.Logger.WithFields(logrus.Fields{"workspace_name": work.WorkspaceName, "force": work.Force, "run_id": work.RunID}).Info("starting work")
 
 			applyErr = m.apply(ctx, work.RunID)
