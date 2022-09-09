@@ -70,8 +70,6 @@ func multiapplyEntrypoint(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	m.Logger.Info("len queue", len(m.Queue))
-
 	if len(m.Queue) == 0 {
 		m.Logger.Error("no runs to queue")
 		os.Exit(0)
@@ -90,10 +88,13 @@ func multiapplyEntrypoint(cmd *cobra.Command, args []string) {
 
 	wg := tool.NewWorkerGroup()
 
+	workerCtx, workerCtxCancel := context.WithCancel(ctx)
+	defer workerCtxCancel()
+
 	for i := 0; i < settings.MultiApplySettings.Workers; i++ {
 		wg.Add(1)
 
-		go m.Work(ctx, settings.MultiApplySettings.Timeout, wg)
+		go m.Work(workerCtx, settings.MultiApplySettings.Timeout, wg)
 	}
 
 	wg.Wait()
