@@ -25,6 +25,3 @@ jobs:
         run: |
           go build -o bin/tfc
           bin/tfc --help
-      - name: Run build all script
-        run: |
-          bash scripts/build/build_and_zip_all.sh
