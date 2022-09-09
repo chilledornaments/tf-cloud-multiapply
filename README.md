@@ -7,6 +7,10 @@
 - `chmod +x tfc`
 - Move the binary into your PATH
 
+### macOS Install Notes
+
+If you run into an error like "Apple can’t check app for malicious software", run `xattr -d com.apple.quarantine /path/to/file`
+
 ## Power User Instructions
 
 Store the following env vars in a file that you `source` before using this tool:
