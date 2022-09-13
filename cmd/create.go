@@ -24,7 +24,7 @@ func createWorkspaceEntrypoint(cmd *cobra.Command, args []string) {
 	for _, s := range settings.Create.Suffix {
 		newWorkspaceName := fmt.Sprintf("%s-%s", settings.Prefix, s)
 		// User hasn't supplied a var file prefix override
-		if settings.Prefix == "" {
+		if settings.Create.VariableFilePrefix == "" {
 			varFileName = fmt.Sprintf("%s.tfvars", s)
 		} else {
 			varFileName = fmt.Sprintf("%s-%s.tfvars", tool.CleanVarFilePrefix(settings.Prefix), s)
@@ -41,10 +41,12 @@ func createWorkspaceEntrypoint(cmd *cobra.Command, args []string) {
 				VariableFilePath:   fmt.Sprintf("%s/%s", tool.CleanFolderName(settings.Create.PathToVariableFiles), varFileName),
 				VariableSetIds:     settings.Create.VariableSetSecretIDs,
 				SkipPlanArgsEnvVar: settings.Create.SkipPlanArgsEnvVar,
+				WorkingDir:         settings.Create.WorkingDir,
 			},
 		)
 
 		if err != nil {
+			panic(err)
 			os.Exit(1)
 		} else {
 			newWorkspaceIDs = append(newWorkspaceIDs, *workspaceID)

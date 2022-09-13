@@ -3,6 +3,7 @@ package tool
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 
 	"github.com/hashicorp/go-tfe"
@@ -76,6 +77,7 @@ func (m *MultiApply) Find(ctx context.Context, prefix string) (map[string]string
 
 	ws, err := m.Tool.client.Workspaces.List(ctx, m.Tool.organization, o)
 
+	// TODO - handle err
 	if err != nil {
 		panic(err)
 	}
@@ -85,7 +87,9 @@ func (m *MultiApply) Find(ctx context.Context, prefix string) (map[string]string
 	nextPage := ws.Pagination.NextPage
 
 	for _, w := range ws.Items {
-		r[w.Name] = w.ID
+		if strings.HasPrefix(w.Name, prefix) {
+			r[w.Name] = w.ID
+		}
 	}
 
 	for currentPage <= nextPage {
@@ -103,7 +107,9 @@ func (m *MultiApply) Find(ctx context.Context, prefix string) (map[string]string
 		nextPage = ws.NextPage
 
 		for _, w := range ws.Items {
-			r[w.Name] = w.ID
+			if strings.HasPrefix(w.Name, prefix) {
+				r[w.Name] = w.ID
+			}
 		}
 	}
 

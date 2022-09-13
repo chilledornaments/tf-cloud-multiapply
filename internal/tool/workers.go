@@ -77,7 +77,7 @@ func (m *MultiApply) Work(ctx context.Context, timeout int, gated bool, wg *sync
 
 			logger := m.Logger.WithFields(logrus.Fields{"workspace_name": work.WorkspaceName, "force": work.Force, "run_id": work.RunID})
 
-			logger.Info("starting work")
+			logger.Info("starting apply")
 
 			m.applyAndWait(ctx, timeout, work.RunID, work.WorkspaceName, work.Force)
 		}

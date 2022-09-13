@@ -34,6 +34,7 @@ type CLISettings struct {
 		Repo                 string
 		VCSOAuthTokenID      string
 		SkipPlanArgsEnvVar   bool
+		WorkingDir           string
 	}
 }
 
@@ -64,6 +65,10 @@ func initTool() {
 	tfcTool = tool.NewTool(token, organization, settings.Debug)
 }
 
+func initMockTool() {
+
+}
+
 func buildmultiApplyCmd() {
 	multiApplyCmd.Flags().StringVarP(&settings.Prefix, "prefix", "p", "", "Prefix to apply against")
 	multiApplyCmd.Flags().IntVarP(&settings.MultiApplySettings.Workers, "workers", "w", 5, "Number of concurrent applies to run")
@@ -90,10 +95,11 @@ func buildcreateWorkspaceCmd() {
 	createWorkspaceCmd.Flags().StringVarP(&settings.Create.VariableFilePrefix, "var-file-prefix", "x", "", "Combined with suffix to build variable file name for a given workspace")
 	createWorkspaceCmd.Flags().StringVarP(&settings.Create.Repo, "repo", "r", "", "Repository name to connect to workspace. Must be in the form of <Repo owner>/<repo name>")
 	createWorkspaceCmd.Flags().StringVarP(&settings.Create.VCSOAuthTokenID, "vcs-token-id", "i", os.Getenv("TFC_VCS_TOKEN_ID"), "ID of OAuth token that Terraform Cloud uses to connect to VCS. Can be found in Terraform Cloud version control settings")
+	createWorkspaceCmd.Flags().StringVarP(&settings.Create.WorkingDir, "working-dir", "d", "", "Working directory for the workspace")
+	// TODO - figure out best way to validate these
 }
 
 func init() {
-
 	buildmultiApplyCmd()
 	buildcreateWorkspaceCmd()
 

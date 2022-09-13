@@ -19,20 +19,29 @@ type NewWorkspaceOptions struct {
 	VariableFilePath   string
 	VariableSetIds     []string
 	SkipPlanArgsEnvVar bool
+	WorkingDir         string
 }
 
 // Create creates a workspace, adds the TF_CLI_ARGS_plan env var to it, then returns the new workspace ID
 func (w *WorkspaceCreator) Create(ctx context.Context, options *NewWorkspaceOptions) (*string, error) {
+	opts := tfe.WorkspaceCreateOptions{
+		Type: "workspaces",
+		Name: &options.Name,
+		VCSRepo: &tfe.VCSRepoOptions{
+			Identifier:   &options.Repo,
+			OAuthTokenID: &options.OAuthTokenID,
+		},
+	}
+
+	// Only add this if the user has specified a working directory
+	if options.WorkingDir != "" {
+		opts.WorkingDirectory = &options.WorkingDir
+	}
+
+	// WorkingDirectory: &options.WorkingDir,
 	r, err := w.client.Workspaces.Create(
 		ctx, w.organization,
-		tfe.WorkspaceCreateOptions{
-			Type: "workspaces",
-			Name: &options.Name,
-			VCSRepo: &tfe.VCSRepoOptions{
-				Identifier:   &options.Repo,
-				OAuthTokenID: &options.OAuthTokenID,
-			},
-		},
+		opts,
 	)
 
 	if err != nil {
