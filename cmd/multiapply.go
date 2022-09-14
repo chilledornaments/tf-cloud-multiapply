@@ -104,7 +104,7 @@ func multiapplyEntrypoint(cmd *cobra.Command, args []string) {
 	if !settings.MultiApplySettings.AutoApprove {
 		fmt.Println("** workspaces to apply:")
 		for _, item := range m.Queue {
-			fmt.Printf("- %s", item.WorkspaceName)
+			fmt.Printf("- %s\n", item.WorkspaceName)
 		}
 
 		// Seems redundant if the build is gated, but this gives the user a chance to bail out if they typoed or something
