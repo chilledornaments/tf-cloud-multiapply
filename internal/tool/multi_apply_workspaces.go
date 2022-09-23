@@ -152,6 +152,8 @@ func (m *MultiApply) RunIsAppliable(ctx context.Context, id string) bool {
 		m.Logger.WithFields(logrus.Fields{"run_id": id, "err": err.Error()}).Error()
 	}
 
+	m.Logger.WithFields(logrus.Fields{"run_id": id}).Debug("run status: ", v.Status)
+
 	return v.Status == "pending" || v.Status == "planned"
 
 }
