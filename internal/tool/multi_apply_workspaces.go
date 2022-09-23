@@ -152,7 +152,8 @@ func (m *MultiApply) RunIsAppliable(ctx context.Context, id string) bool {
 		m.Logger.WithFields(logrus.Fields{"run_id": id, "err": err.Error()}).Error()
 	}
 
-	return v.Actions.IsConfirmable
+	return v.Status == "pending" || v.Status == "planned"
+
 }
 
 func (m *MultiApply) ForceExecute(ctx context.Context, id string, workspaceName string) {}
